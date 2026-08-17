@@ -84,7 +84,10 @@ export default function Home() {
   const exportPattern = useMemo(() => pattern ? toExportPattern(pattern) : null, [pattern]);
   const materials = useMemo(() => exportPattern ? buildMaterialsRows(exportPattern, sparePercentage) : [], [exportPattern, sparePercentage]);
   const totalBeads = materials.reduce((sum, row) => sum + row.requiredQuantity, 0);
-  const updateDimension = (setter: (value: number) => void, value: string) => setter(Math.max(1, Math.min(100, Number.parseInt(value, 10) || 1)));
+  const updateDimension = (setter: (value: number) => void, value: string) => {
+    const parsed = Number.parseInt(value, 10);
+    setter(Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1);
+  };
   const toggleDisabled = (id: string) => setDisabledIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   const generate = async () => {
     try {
@@ -102,7 +105,7 @@ export default function Home() {
     <header className="topbar"><a className="brand" href="#workspace" aria-label="BeadCraftr home"><span className="brand-mark">BC</span><span>BeadCraftr</span></a><p>Turn an image into a pattern you can actually make.</p><span className="local-badge">Local in your browser</span></header>
     <section className="hero" aria-labelledby="page-title"><div><p className="eyebrow">Fuse bead pattern studio</p><h1 id="page-title">Make the picture. Count every bead.</h1><p className="hero-copy">Crop your image, choose the beads you have, and get a clear 29 x 29 pattern with a ready-to-shop materials list.</p></div><div className="hero-art" aria-hidden="true">{Array.from({ length: 25 }, (_, index) => <span key={index} className={`hero-bead hero-bead-${index % 5}`} />)}</div></section>
     <section id="workspace" className="workspace" aria-label="Pattern generator">
-      <aside className="controls-panel"><div className="panel-heading"><p className="eyebrow">01. Configure</p><h2>Your board & beads</h2></div><div className="control-grid two-columns"><label>Width <input type="number" min="1" max="100" value={width} onChange={(event) => updateDimension(setWidth, event.target.value)} /></label><label>Height <input type="number" min="1" max="100" value={height} onChange={(event) => updateDimension(setHeight, event.target.value)} /></label></div><p className="control-note">Default Perler board: 29 x 29 pegs.</p>
+      <aside className="controls-panel"><div className="panel-heading"><p className="eyebrow">01. Configure</p><h2>Your board & beads</h2></div><div className="control-grid two-columns"><label>Width <input type="number" min="1" value={width} onChange={(event) => updateDimension(setWidth, event.target.value)} /></label><label>Height <input type="number" min="1" value={height} onChange={(event) => updateDimension(setHeight, event.target.value)} /></label></div><p className="control-note">Default Perler board: 29 x 29 pegs. Large boards may take longer to generate.</p>
         <label>Bead brands<select value={brand} onChange={(event) => { setBrand(event.target.value); setBackgroundId("empty"); }}><option value="PERLER">Perler</option><option value="ARTKAL">Artkal</option><option value="BOTH">Perler + Artkal</option></select></label>
         <label>Maximum generated colors <span className="field-value">{maxColors}</span><input type="range" min="1" max="32" value={maxColors} onChange={(event) => setMaxColors(Number(event.target.value))} /></label>
         <label>Source type<select value={sourceType} onChange={(event) => setSourceType(event.target.value as SourceType)}><option value="photo">Photo (smooth sampling)</option><option value="pixel-art">Pixel art (crisp sampling)</option></select></label>

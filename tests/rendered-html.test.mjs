@@ -21,14 +21,18 @@ test("server-renders the BeadCraftr pattern workspace", async () => {
 });
 
 test("removes the disposable starter preview and its dependency", async () => {
-  const [page, layout, packageJson] = await Promise.all([
+  const [page, layout, css, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
   assert.match(page, /ImageCropWorkspace/);
   assert.match(page, /convertRasterToPattern/);
   assert.match(layout, /BeadCraftr/);
+  assert.doesNotMatch(page, /max="100"|Math\.min\(100/);
+  assert.match(css, /\.bead-grid \.pattern-cell \{ position:relative; border:0;/);
+  assert.match(css, /\.bead-grid \.pattern-cell\.occupied:after \{ content:""; position:absolute; inset:0;/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.deepEqual(await readdir(new URL("../app/_sites-preview", import.meta.url)), []);
 });

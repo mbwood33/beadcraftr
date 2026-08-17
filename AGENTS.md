@@ -75,7 +75,7 @@ The application should preserve all relevant settings and edits in an exportable
 
 ### Conversion
 
-- Support any sensible positive grid width and height, default 29 x 29. Validate inputs and set practical UI limits to protect responsiveness.
+- Support any positive grid width and height, default 29 x 29. Do not impose an arbitrary maximum; validate positive safe integers and clearly warn that large boards can take longer to generate or export.
 - Match generated colors only to eligible bead catalogue records. The result must retain bead ID, brand, name, code, RGB, and the source color used for matching.
 - Brand choices must include Perler, Artkal, and both where valid data exists. When both are selected, clearly identify brand in every palette, legend, and material count.
 - Permit users to disable colors they do not own or do not want used. Disabled colors must be excluded from matching and substitution suggestions.
