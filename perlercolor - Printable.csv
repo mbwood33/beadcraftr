@@ -1,0 +1,157 @@
+CODE,NAME,R,G,B,HTML,BRAND,NOTES
+P01,White,255,255,255,FFFFFF,PERLER,3
+S77,Ghost White,239,239,239,#efefef,ARTKAL,0
+P81,Light Gray,211,211,203,D3D3CB,PERLER,5
+P17,Gray,152,153,153,989999,PERLER,2
+P206,Pewter,149,156,152,959C98,PERLER,0
+s43,Dark Grey,118,119,119,#767777,ARTKAL,4
+P207,Charcoal,75,82,81,4B5251,PERLER,3
+P92,Dark Gray,71,69,69,474545,PERLER,2
+s69,Mineshaft,35,40,43,#23282b,ARTKAL,3
+P18,Black,26,19,17,1A1311,PERLER,2
+,,,,,,,
+P208,Toasted Marshmallow,253,234,219,FDEADB,PERLER,3
+P98,Sand,246,204,153,F6CC99,PERLER,1
+s93,Pale Skin,218,182,152,#dab698,ARTKAL,
+P205,Fawn,215,176,135,D7B087,PERLER,3
+P35,Tan,200,157,117,C89D75,PERLER,1
+s83,Sienna,184,97,37,#bb6125,ARTKAL,
+P20,Rust,146,51,34,923322,PERLER,1
+P96,Cranapple,139,43,60,8B2B3C,PERLER,2
+s85,Red Wine,66,3,26,#42031a,ARTKAL,
+,,,,,,,
+s32,beeswax,255,231,128,#ffe780,ARTKAL,
+s92,Dandilion,222,185,71,#deb947,ARTKAL,
+S47,marigold,180,126,0,#b47e00,ARTKAL,
+P21,Light Brown,158,113,75,9E714B,PERLER,0
+P12,Brown,82,53,41,523529,PERLER,3
+,,,,,,,
+P02,Cream,222,222,159,DEDE9F,PERLER,1
+P56,Pastel Yellow,240,233,148,F0E994,PERLER,1
+s65,canary,243,234,93,#f3ea5d,ARTKAL,
+P03,Yellow,246,230,55,F6E637,PERLER,1
+s48,corn,255,199,44,#ffc72c,ARTKAL,
+P57,Cheddar,252,179,57,FCB339,PERLER,2
+P04,Orange,247,144,38,F79026,PERLER,2
+P90,Butterscotch,228,136,78,E4884E,PERLER,2
+s66,Blaze Orange,244,99,58,#f4633a,ARTKAL,
+,,,,,,,
+P59,Hot Coral,235,91,72,EB5B48,PERLER,0
+P203,Flamingo,242,130,112,F28270,PERLER,1
+P63,Blush,245,137,120,F58978,PERLER,1
+P204,Salmon,246,196,193,F6C4C1,PERLER,1
+P33,Peach,234,191,181,EABFB5,PERLER,0
+s84,Deep Chesnut,170,87,97,#aa5761,ARTKAL,
+,,,,,,,
+P79,Light Pink,234,185,211,EAB9D3,PERLER,3
+s40,Carnation Pink ,241,167,220,#f1a7dc,ARTKAL,
+P06,Bubble Gum,236,137,183,EC89B7,PERLER,1
+P83,Pink,234,78,152,EA4E98,PERLER,1
+P38,Magenta,232,57,128,E83980,PERLER,0
+,,,,,,,
+P05,Red,204,34,40,CC2228,PERLER,2
+P961,Cherry,172,37,52,AC2534,PERLER,0
+s58,Paprika,165,0,52,#a50034,ARTKAL,
+S146,Bloodrose Red,81,9,24,#510918,ARTKAL,
+s38,Burgundy,171,37,86,#ab2556,ARTKAL,
+P88,Raspberry,189,24,96,BD1860,PERLER,2
+S49,Mulberry Wood,114,25,95,#72195f,ARTKAL,
+P60,Plum,184,89,160,B859A0,PERLER,3
+,,,,,,,
+s33,Maverick,197,180,227,#c5b4e3,ARTKAL,
+P82,Light Lavender,198,170,206,C6AACE,PERLER,1
+s60,lavender,167,123,202,#a77bca,ARTKAL,
+P54,Pastel Lavender,160,119,179,A077B3,PERLER,0
+P07,Purple,116,59,151,743B97,PERLER,1
+s23,royal purple,100,53,155,#64359b,ARTKAL,
+S22,purple,51,0,114,#330072,ARTKAL,
+,,,,,,,
+P202,Robin's Egg,215,239,250,D7EFFA,PERLER,1
+s44,sky blue,170,220,235,#aadceb,ARTKAL,
+P??,Clear Blue,124,210,242,7CD2F2,PERLER,0
+P52,Pastel Blue,112,166,208,70A6D0,PERLER,1
+P09,Light Blue,80,150,208,5096D0,PERLER,0
+s24,true blue,20,123,209,#147bd1,ARTKAL,
+P200,Cobalt,15,82,164,0F52A4,PERLER,1
+P08,Dark Blue,43,48,124,2B307C,PERLER,0
+P201,Midnight,22,40,70,162846,PERLER,3
+s64,black rock,5,8,73,#050849,ARTKAL,
+,,,,,,,
+P58,Toothpaste,179,226,233,B3E2E9,PERLER,3
+S54,light blue,0,144,218,#0090da,ARTKAL,
+P62,Turquoise,0,143,204,008FCC,PERLER,0
+,,,,,,,
+P11,Light Green,84,193,172,54C1AB,PERLER,1
+s45,Medium Turquoise,0,178,169,#00b2a9,ARTKAL,
+P91,Parrot Green,0,153,146,009992,PERLER,2
+S62,Green tea/pea,0,124,88,#007c58,ARTKAL,
+s09,dark green,0,104,94,#00685e,ARTKAL,
+,,,,,,,
+S55,Pistachio,173,220,145,#addc91,ARTKAL,
+P53,Pastel Green,172,211,120,ACD378,PERLER,0
+P61,Kiwi Lime,136,195,65,88C341,PERLER,2
+P80,Bright Green,111,192,96,6FC060,PERLER,1
+s 20,Green,36,158,107,#249e6b,ARTKAL,
+P99,Shamrock,0,153,73,009949,PERLER,1
+P10,Dark Green,33,90,50,215A32,PERLER,2
+,,,,,,,
+P97,Prickly Pear,215,224,65,D7E041,PERLER,2
+S80 ,Dark Olive,153,155,48,#999b30,ARTKAL,
+s111,cafe latte,118,108,43,#766c2b,ARTKAL,
+s117,Sage Green,78,88,44,#4e582c,ARTKAL,
+P179,Evergreen,47,68,46,2F442E,PERLER,0
+s91,Brunswick green,24,48,40,#183028,ARTKAL,
+,,,,,,,
+s31,sea mist,158,229,176,#9ee5b0,ARTKAL,
+s121,Celadon Green,86,154,131,#569a83,ARTKAL,
+,,,,,,,
+P49,Neon Green,1,158,67,#019e43,PERLER,Neon
+P47,Neon Yellow,220,224,2,#dce002,PERLER,Neon
+P50,Neon Pink,255,57,145,#ff3991,PERLER,Neon
+P48,Neon Orange,255,119,0,#ff7700,PERLER,Neon
+P??,Neon Blue,???,???,???,???,PERLER,Neon
+,,,,,,,
+P105,Silver,119,123,129,777b81,PERLER,Metallic
+P85,Gold,187,118,52,bb7634,PERLER,Metallic
+???,Copper,???,???,???,???,PERLER,Metallic
+s41,Copper,154,85,22,,ARTKAL,Metallic
+,,,,,,,
+P104,Pearl Light Pink,215,168,162,d7a8a2,PERLER,Pearl
+P100,Pearl Coral,249,126,121,f97e79,PERLER,Pearl
+P103,Pearl Yellow,202,192,51,cac033,PERLER,Pearl
+p102,Pearl Green,132,183,145,84b791,PERLER,Pearl
+P101,Pearl Light Blue,122,174,162,7aaea2,PERLER,Pearl
+sp1,Pearl Green,???,???,???,???,ARTKAL,Pearl
+sp2,pearl orange,???,???,???,???,ARTKAL,Pearl
+sp3,Pearl Tangerine,???,???,???,???,ARTKAL,Pearl
+sp4 ,Pearl Pink,???,???,???,???,ARTKAL,Pearl
+sp5,Pearl Red,???,???,???,???,ARTKAL,Pearl
+sp6,Pearl Blue,???,???,???,???,ARTKAL,Pearl
+sp7,Pearl Purple,???,???,???,???,ARTKAL,Pearl
+sp8,Pearl Clear,???,???,???,???,ARTKAL,Pearl
+,,,,,,,
+P??,Red Glitter,???,???,???,???,PERLER,Glitter
+P??,Blue Glitter,???,???,???,???,PERLER,Glitter
+P??,Purple Glitter,???,???,???,???,PERLER,Glitter
+P??,Yellow Glitter,???,???,???,???,PERLER,Glitter
+P??,Green Glitter,???,???,???,???,PERLER,Glitter
+P??,Clear Glitter,???,???,???,???,PERLER,Glitter
+P??,Black Glitter,???,???,???,???,PERLER,Glitter
+P??,White Glitter,???,???,???,???,PERLER,Glitter
+P??,Pink Glitter,???,???,???,???,PERLER,Glitter
+P??,Fairy Dust,169,213,162,A9D5A2,PERLER,Glitter
+P??,Kiwi Glitter,???,???,???,???,PERLER,Glitter
+sL1,glitter blue,???,???,???,???,ARTKAL,Glitter
+sL5,glitter purple,???,???,???,???,ARTKAL,Glitter
+,,,,,,,
+P??,Clear,???,???,???,???,PERLER,transluscent 
+st6,transparent purple,???,???,???,???,ARTKAL,transluscent 
+,,,,,,,
+P75,Glow Green,190,198,150,#bec696,PERLER,glow-in-the-dark
+P??,Glow Blue,???,???,???,???,PERLER,glow-in-the-dark
+P??,Glow Pink,???,???,???,???,PERLER,glow-in-the-dark
+P??,Glow Purple,???,???,???,???,PERLER,glow-in-the-dark
+P??,Glow Orange,???,???,???,???,PERLER,glow-in-the-dark
+,,,,,,,
+P??,Blueberry Crème,152,161,209,98A1D1,PERLER,1
+P??,Periwinkle,101,115,168,6573A8,PERLER,1
