@@ -15,3 +15,7 @@ test("substitutions are suggestions until explicitly applied", () => {
   assert.equal(updated.counts.size, 1);
   assert.equal(updated.counts.get(nearGray.id), 3);
 });
+
+test("disabled colors are never suggested as replacement targets", () => {
+  assert.deepEqual(suggestColorSubstitutions(pattern, 3, new Set([gray.id])), []);
+});

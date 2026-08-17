@@ -29,14 +29,14 @@ export function perceptualDistance(first: Rgb, second: Rgb): number {
 }
 
 /** Finds optional low-impact merges; it never changes a pattern by itself. */
-export function suggestColorSubstitutions(pattern: ConvertedPattern, maxSuggestions = 3): ColorSubstitutionSuggestion[] {
+export function suggestColorSubstitutions(pattern: ConvertedPattern, maxSuggestions = 3, eligibleTargetIds?: ReadonlySet<string>): ColorSubstitutionSuggestion[] {
   const used = [...pattern.counts.entries()]
     .map(([id, quantity]) => ({ bead: pattern.beadsById.get(id), quantity }))
     .filter((entry): entry is { bead: NonNullable<typeof entry.bead>; quantity: number } => Boolean(entry.bead?.rgb));
   return used
     .filter(({ quantity }) => quantity <= 12)
     .flatMap(({ bead: source, quantity }) => used
-      .filter(({ bead: target, quantity: targetQuantity }) => target.id !== source.id && targetQuantity > quantity)
+      .filter(({ bead: target, quantity: targetQuantity }) => target.id !== source.id && targetQuantity > quantity && (!eligibleTargetIds || eligibleTargetIds.has(target.id)))
       .map(({ bead: target }) => ({ fromId: source.id, toId: target.id, quantity, distance: perceptualDistance(source.rgb!, target.rgb!) })))
     .filter((suggestion) => suggestion.distance <= 20)
     .sort((first, second) => first.distance - second.distance || first.quantity - second.quantity || first.fromId.localeCompare(second.fromId))
