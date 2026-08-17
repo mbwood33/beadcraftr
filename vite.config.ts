@@ -10,6 +10,7 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const githubPagesBase = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "");
 
 const localBindingConfig = {
   main: "./worker/index.ts",
@@ -44,6 +45,9 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    // Keep the route at / for static prerendering, but prefix files when the
+    // Pages workflow deploys this repository below /beadcraftr/.
+    base: githubPagesBase ? `${githubPagesBase}/` : "/",
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
