@@ -26,6 +26,8 @@ export type Background = Readonly<
   | { kind: "bead"; beadId: string }
 >;
 
+export type DitherMode = "none" | "floyd-steinberg" | "ordered";
+
 export type ConversionOptions = Readonly<{
   width: number;
   height: number;
@@ -34,6 +36,7 @@ export type ConversionOptions = Readonly<{
   maxColors?: number;
   alphaThreshold?: number;
   background?: Background;
+  dither?: DitherMode;
 }>;
 
 export type PatternCell = Readonly<{

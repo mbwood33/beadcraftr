@@ -1,5 +1,6 @@
 "use client";
 import { ChangeEvent, PointerEvent, useEffect, useRef, useState } from "react";
+import { applyImageAdjustments, defaultImageAdjustments, type ImageAdjustments } from "../lib/image-adjustments";
 
 export type FitMode = "cover" | "contain";
 export type PaddingAlignment = "top-left" | "center";
@@ -26,6 +27,7 @@ export type ImagePreparationValue = {
   fitMode: FitMode;
   paddingAlignment: PaddingAlignment;
   lockAspectRatio: boolean;
+  adjustments: ImageAdjustments;
 };
 
 /** Alias used by the app-level conversion pipeline. */
@@ -44,6 +46,7 @@ export const defaultImagePreparation: ImagePreparationValue = {
   fitMode: "cover",
   paddingAlignment: "top-left",
   lockAspectRatio: true,
+  adjustments: defaultImageAdjustments,
 };
 
 type Props = {
@@ -127,9 +130,12 @@ export function ImageCropWorkspace({
       context.scale(value.flipHorizontal ? -1 : 1, value.flipVertical ? -1 : 1);
       context.drawImage(image, -value.sourceWidth! / 2, -value.sourceHeight! / 2);
       context.restore();
+      const preview = context.getImageData(0, 0, canvas.width, canvas.height);
+      preview.data.set(applyImageAdjustments(preview.data, value.adjustments));
+      context.putImageData(preview, 0, 0);
     };
     image.src = value.sourceUrl;
-  }, [value.sourceUrl, value.sourceWidth, value.sourceHeight, value.rotation, value.flipHorizontal, value.flipVertical]);
+  }, [value.sourceUrl, value.sourceWidth, value.sourceHeight, value.rotation, value.flipHorizontal, value.flipVertical, value.adjustments]);
 
   // The crop only needs normalization when the board shape changes; including the
   // controlled object here would re-emit it after every parent render.
@@ -236,6 +242,7 @@ export function ImageCropWorkspace({
     }, value.lockAspectRatio, ratio, imageAspect);
     update({ zoom, crop });
   };
+  const updateAdjustment = (key: keyof ImageAdjustments, amount: number) => update({ adjustments: { ...value.adjustments, [key]: amount } });
   const cropStyle = { left: `${value.crop.x}%`, top: `${value.crop.y}%`, width: `${value.crop.width}%`, height: `${value.crop.height}%` };
   const stageAspect = 4 / 3;
   const imageViewportStyle = imageAspect >= stageAspect
@@ -277,6 +284,16 @@ export function ImageCropWorkspace({
           <label className="block text-sm text-slate-700">Zoom <span className="float-right tabular-nums text-slate-500">{value.zoom.toFixed(2)}×</span>
             <input className="mt-1 w-full accent-teal-600" type="range" min="1" max="3" step="0.01" value={value.zoom} onChange={(e) => changeZoom(Number(e.target.value))} />
           </label>
+          <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-800">Image adjustments</summary>
+            <div className="mt-3 space-y-2">
+              <label className="block text-xs text-slate-700">Brightness <span className="float-right">{value.adjustments.brightness}</span><input className="mt-1 w-full accent-teal-600" type="range" min="-100" max="100" value={value.adjustments.brightness} onChange={(event) => updateAdjustment("brightness", Number(event.target.value))} /></label>
+              <label className="block text-xs text-slate-700">Contrast <span className="float-right">{value.adjustments.contrast}</span><input className="mt-1 w-full accent-teal-600" type="range" min="-100" max="100" value={value.adjustments.contrast} onChange={(event) => updateAdjustment("contrast", Number(event.target.value))} /></label>
+              <label className="block text-xs text-slate-700">Saturation <span className="float-right">{value.adjustments.saturation}</span><input className="mt-1 w-full accent-teal-600" type="range" min="-100" max="100" value={value.adjustments.saturation} onChange={(event) => updateAdjustment("saturation", Number(event.target.value))} /></label>
+              <label className="block text-xs text-slate-700">Hue <span className="float-right">{value.adjustments.hue} degrees</span><input className="mt-1 w-full accent-teal-600" type="range" min="-180" max="180" value={value.adjustments.hue} onChange={(event) => updateAdjustment("hue", Number(event.target.value))} /></label>
+              <label className="block text-xs text-slate-700">Gamma <span className="float-right">{value.adjustments.gamma.toFixed(2)}</span><input className="mt-1 w-full accent-teal-600" type="range" min="0.4" max="2.5" step="0.01" value={value.adjustments.gamma} onChange={(event) => updateAdjustment("gamma", Number(event.target.value))} /></label>
+            </div>
+          </details>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50" onClick={rotate}>Rotate 90°</button>
             <button type="button" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50" onClick={() => update({ flipHorizontal: !value.flipHorizontal })}>Flip horizontal</button>

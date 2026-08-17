@@ -1,5 +1,5 @@
 import { eligibleBeads, findBead } from "./catalogue";
-import type { Bead, ConversionOptions, ConvertedPattern, Rgb, RgbaRaster } from "./types";
+import type { Bead, ConversionOptions, ConvertedPattern, DitherMode, Rgb, RgbaRaster } from "./types";
 
 const DEFAULT_MAX_COLORS = 16;
 const DEFAULT_ALPHA_THRESHOLD = 128;
@@ -37,6 +37,42 @@ function composite(foreground: Rgb, alpha: number, background: Rgb): Rgb {
     b: Math.round(foreground.b * opacity + background.b * (1 - opacity)),
   };
 }
+function clamp(value: number) { return Math.max(0, Math.min(255, Math.round(value))); }
+
+function ditherToPalette(prepared: readonly (Rgb | null)[], width: number, height: number, palette: readonly Bead[], mode: DitherMode): (Bead | null)[] {
+  if (mode === "none") return prepared.map((color) => color ? closest(color, palette) : null);
+  if (mode === "ordered") {
+    const bayer4 = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    return prepared.map((color, index) => {
+      if (!color) return null;
+      const x = index % width, y = Math.floor(index / width);
+      const adjustment = ((bayer4[y % 4][x % 4] + 0.5) / 16 - 0.5) * 48;
+      return closest({ r: clamp(color.r + adjustment), g: clamp(color.g + adjustment), b: clamp(color.b + adjustment) }, palette);
+    });
+  }
+  const working = prepared.map((color) => color ? { r: color.r, g: color.g, b: color.b } : null);
+  const output: (Bead | null)[] = Array.from({ length: prepared.length }, () => null);
+  const addError = (index: number, error: Rgb, weight: number) => {
+    const color = working[index];
+    if (!color) return;
+    color.r += error.r * weight; color.g += error.g * weight; color.b += error.b * weight;
+  };
+  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+    const index = y * width + x, color = working[index];
+    if (!color) continue;
+    const bead = closest({ r: clamp(color.r), g: clamp(color.g), b: clamp(color.b) }, palette);
+    output[index] = bead;
+    const target = bead.rgb!;
+    const error = { r: color.r - target.r, g: color.g - target.g, b: color.b - target.b };
+    if (x + 1 < width) addError(index + 1, error, 7 / 16);
+    if (y + 1 < height) {
+      if (x > 0) addError(index + width - 1, error, 3 / 16);
+      addError(index + width, error, 5 / 16);
+      if (x + 1 < width) addError(index + width + 1, error, 1 / 16);
+    }
+  }
+  return output;
+}
 
 /** Maps an already resized RGBA raster (one pixel per target peg) to an eligible physical palette. */
 export function convertRasterToPattern(raster: RgbaRaster, catalogue: readonly Bead[], options: ConversionOptions): ConvertedPattern {
@@ -70,8 +106,10 @@ export function convertRasterToPattern(raster: RgbaRaster, catalogue: readonly B
     .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
     .slice(0, maxColors)
     .map(([id]) => palette.find((bead) => bead.id === id)!);
+  const dither = options.dither ?? "none";
+  const mapped = ditherToPalette(prepared, width, height, finalPalette, dither);
   const cells = prepared.map((sourceRgb, index) => {
-    const bead = sourceRgb ? closest(sourceRgb, finalPalette) : null;
+    const bead = mapped[index];
     return { x: index % width, y: Math.floor(index / width), beadId: bead?.id ?? null, sourceRgb };
   });
   const counts = new Map<string, number>();
