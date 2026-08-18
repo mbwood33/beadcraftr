@@ -55,6 +55,40 @@ export type PatternRenderOptions = {
   gridColor?: string;
 };
 
+/** A printable page tile, using zero-based pattern coordinates. */
+export type PatternPrintTile = {
+  index: number;
+  column: number;
+  row: number;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type PatternPrintLayout = {
+  mode: "single" | "tiled";
+  tileWidth: number;
+  tileHeight: number;
+  overlap: number;
+  columns: number;
+  rows: number;
+  tiles: PatternPrintTile[];
+};
+
+export type PrintablePatternOptions = PatternRenderOptions & {
+  title?: string;
+  sparePercentage?: number;
+  /** Auto uses one page for a board-sized pattern and tiles larger work. */
+  layout?: "auto" | "single" | "tiled";
+  /** Number of pegs to repeat on touching pages for registration. */
+  overlap?: number;
+  /** Page content size in pegs. Defaults to a board plus its registration edge. */
+  tileWidth?: number;
+  tileHeight?: number;
+};
+
 const DEFAULT_CELL_SIZE = 24;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
@@ -63,6 +97,52 @@ function alphaLabel(index: number): string {
   let label = "";
   do { label = String.fromCharCode(65 + value % 26) + label; value = Math.floor(value / 26) - 1; } while (value >= 0);
   return label;
+}
+
+function validPositiveInteger(value: number | undefined, fallback: number): number {
+  return Number.isSafeInteger(value) && (value as number) > 0 ? value as number : fallback;
+}
+
+/**
+ * Computes page tiles without touching the DOM, making pagination predictable
+ * and independently testable. Adjacent tiles repeat `overlap` peg columns or
+ * rows, so physical assembly can be aligned across printed pages.
+ */
+export function createPatternPrintLayout(
+  pattern: PatternExportModel,
+  options: Pick<PrintablePatternOptions, "layout" | "overlap" | "tileWidth" | "tileHeight"> = {},
+): PatternPrintLayout {
+  assertPattern(pattern);
+  const boardWidth = validPositiveInteger(pattern.metadata?.boardWidth, 29);
+  const boardHeight = validPositiveInteger(pattern.metadata?.boardHeight, 29);
+  const requestedOverlap = options.overlap ?? 1;
+  if (!Number.isSafeInteger(requestedOverlap) || requestedOverlap < 0) throw new Error("Print overlap must be a non-negative integer.");
+  // Default pages hold one board plus the registration edge. This preserves a
+  // complete 29-wide board while avoiding tiny trailing pages (e.g. a 58-wide
+  // pattern becomes two 30/29-wide pages with one repeated column).
+  const tileWidth = validPositiveInteger(options.tileWidth, boardWidth + requestedOverlap);
+  const tileHeight = validPositiveInteger(options.tileHeight, boardHeight + requestedOverlap);
+  if (requestedOverlap >= tileWidth || requestedOverlap >= tileHeight) throw new Error("Print overlap must be smaller than both tile dimensions.");
+  const wantsTiles = options.layout === "tiled" || (options.layout !== "single" && (pattern.width > tileWidth || pattern.height > tileHeight));
+  if (!wantsTiles) return { mode: "single", tileWidth: pattern.width, tileHeight: pattern.height, overlap: 0, columns: 1, rows: 1, tiles: [{ index: 0, column: 0, row: 0, label: "A1", x: 0, y: 0, width: pattern.width, height: pattern.height }] };
+
+  const starts = (length: number, tileSize: number) => {
+    const result: number[] = [];
+    const step = tileSize - requestedOverlap;
+    for (let start = 0; start < length; start += step) {
+      result.push(start);
+      if (start + tileSize >= length) break;
+    }
+    return result;
+  };
+  const xStarts = starts(pattern.width, tileWidth);
+  const yStarts = starts(pattern.height, tileHeight);
+  const tiles: PatternPrintTile[] = [];
+  yStarts.forEach((y, row) => xStarts.forEach((x, column) => tiles.push({
+    index: tiles.length, column, row, label: `${alphaLabel(row)}${column + 1}`,
+    x, y, width: Math.min(tileWidth, pattern.width - x), height: Math.min(tileHeight, pattern.height - y),
+  })));
+  return { mode: "tiled", tileWidth, tileHeight, overlap: requestedOverlap, columns: xStarts.length, rows: yStarts.length, tiles };
 }
 
 function assertPattern(pattern: PatternExportModel): void {
@@ -359,6 +439,48 @@ export function createPatternCanvas(
   return canvas;
 }
 
+/** Render one printable tile. The tile remains in the pattern coordinate system. */
+export function createPatternTileCanvas(
+  pattern: PatternExportModel,
+  tile: Pick<PatternPrintTile, "x" | "y" | "width" | "height">,
+  options: PatternRenderOptions = {},
+): HTMLCanvasElement {
+  assertPattern(pattern);
+  if (!Number.isSafeInteger(tile.x) || !Number.isSafeInteger(tile.y) || !Number.isSafeInteger(tile.width) || !Number.isSafeInteger(tile.height)
+    || tile.x < 0 || tile.y < 0 || tile.width < 1 || tile.height < 1 || tile.x + tile.width > pattern.width || tile.y + tile.height > pattern.height) {
+    throw new Error("Print tile is outside the pattern bounds.");
+  }
+  if (typeof document === "undefined") throw new Error("PNG exports are only available in a browser.");
+  const cellSize = options.cellSize ?? DEFAULT_CELL_SIZE;
+  if (!Number.isInteger(cellSize) || cellSize < 2 || cellSize > 256) throw new Error("Cell size must be an integer from 2 to 256.");
+  const canvas = document.createElement("canvas");
+  canvas.width = tile.width * cellSize;
+  canvas.height = tile.height * cellSize;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Your browser could not create a drawing canvas.");
+  context.fillStyle = options.emptyColor ?? "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  for (let y = 0; y < tile.height; y += 1) for (let x = 0; x < tile.width; x += 1) {
+    const bead = pattern.cells[tile.y + y][tile.x + x];
+    if (!bead) continue;
+    const left = x * cellSize;
+    const top = y * cellSize;
+    context.fillStyle = bead.hex;
+    if ((options.style ?? "pixel") === "bead") {
+      context.beginPath(); context.arc(left + cellSize / 2, top + cellSize / 2, cellSize * 0.42, 0, Math.PI * 2); context.fill();
+    } else context.fillRect(left, top, cellSize, cellSize);
+  }
+  if (options.includeGrid ?? true) {
+    context.strokeStyle = options.gridColor ?? "rgba(0, 0, 0, 0.32)";
+    context.lineWidth = 1;
+    context.beginPath();
+    for (let x = 0; x <= tile.width; x += 1) { const position = x * cellSize + 0.5; context.moveTo(position, 0); context.lineTo(position, canvas.height); }
+    for (let y = 0; y <= tile.height; y += 1) { const position = y * cellSize + 0.5; context.moveTo(0, position); context.lineTo(canvas.width, position); }
+    context.stroke();
+  }
+  return canvas;
+}
+
 export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not encode PNG.")), "image/png");
@@ -396,21 +518,28 @@ function escapeHtml(value: string | number): string {
  */
 export function openPrintablePattern(
   pattern: PatternExportModel,
-  options: PatternRenderOptions & { title?: string; sparePercentage?: number } = {},
+  options: PrintablePatternOptions = {},
 ): Window {
   if (typeof window === "undefined") throw new Error("Printable exports are only available in a browser.");
-  const popup = window.open("", "_blank", "noopener,noreferrer");
+  const popup = window.open("", "_blank");
   if (!popup) throw new Error("The print window was blocked. Allow pop-ups and try again.");
-  const canvas = createPatternCanvas(pattern, { ...options, includeGrid: true, style: "pixel", cellSize: 28 });
+  // Keep the WindowProxy so the printable document can be written, then sever
+  // its connection to the editor before any content is inserted.
+  popup.opener = null;
+  const layout = createPatternPrintLayout(pattern, options);
   const materials = buildMaterialsRows(pattern, options.sparePercentage ?? 10);
   const title = options.title ?? "BeadCraftr pattern";
   const materialRows = materials.map((row) => `<tr><td>${escapeHtml(row.symbol ?? "")}</td><td><span class="swatch" style="background:${escapeHtml(row.hex)}"></span></td><td>${escapeHtml(row.brand)}</td><td>${escapeHtml(row.code)}</td><td>${escapeHtml(row.name)}</td><td>${row.requiredQuantity}</td><td>${row.recommendedQuantity}</td><td>${row.onHandQuantity}</td><td>${row.quantityToBuy}</td></tr>`).join("");
+  const tilePages = layout.tiles.map((tile) => {
+    const image = createPatternTileCanvas(pattern, tile, { ...options, includeGrid: true, style: "pixel", cellSize: 28 }).toDataURL("image/png");
+    const tilePattern: PatternExportModel = { width: tile.width, height: tile.height, cells: pattern.cells.slice(tile.y, tile.y + tile.height).map((row) => row.slice(tile.x, tile.x + tile.width)), metadata: pattern.metadata };
+    const miniLegend = buildMaterialsRows(tilePattern, options.sparePercentage ?? 10).map((row) => `<li><b>${escapeHtml(row.symbol ?? row.code)}</b> ${escapeHtml(row.brand)} ${escapeHtml(row.code)} ${escapeHtml(row.name)}: ${row.requiredQuantity}</li>`).join("");
+    return `<section class="tile-page"><h1>${escapeHtml(title)}</h1><p class="tile-heading">Tile ${tile.label} · columns ${tile.x + 1}–${tile.x + tile.width} · rows ${tile.y + 1}–${tile.y + tile.height}${layout.overlap ? ` · ${layout.overlap}-peg overlap` : ""}</p><div class="tile-frame"><span class="mark tl"></span><span class="mark tr"></span><span class="mark bl"></span><span class="mark br"></span><img class="pattern" alt="${escapeHtml(title)} tile ${tile.label}" src="${image}"></div><p class="tile-note">Align repeated edge pegs with the neighboring tile before assembling.</p><details><summary>Tile ${tile.label} bead counts</summary><ul class="tile-legend">${miniLegend || "<li>No beads in this tile.</li>"}</ul></details></section>`;
+  }).join("");
   popup.document.open();
   popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
-    @page { margin: 0.5in; } body { font-family: Arial, sans-serif; color: #111; } h1 { font-size: 18pt; margin: 0 0 6pt; } p { margin: 0 0 14pt; } .pattern { max-width: 100%; image-rendering: pixelated; border: 1px solid #777; } table { border-collapse: collapse; margin-top: 16pt; width: 100%; font-size: 10pt; } th, td { border: 1px solid #aaa; padding: 5pt; text-align: left; } th { background: #eee; } .swatch { display: block; width: 16pt; height: 16pt; border: 1px solid #555; border-radius: 50%; } @media print { .print { display: none; } }
-  </style></head><body><button class="print" onclick="window.print()">Print / Save as PDF</button><h1>${escapeHtml(title)}</h1><p>${pattern.width} x ${pattern.height} pegs · ${materials.reduce((total, row) => total + row.requiredQuantity, 0)} beads · ${pattern.width * pattern.height - materials.reduce((total, row) => total + row.requiredQuantity, 0)} empty pegs</p><img class="pattern" alt="${escapeHtml(title)} grid pattern" src="${canvas.toDataURL("image/png")}"><h2>Materials</h2><table><thead><tr><th></th><th>Brand</th><th>Code</th><th>Color</th><th>Required</th><th>Recommended</th></tr></thead><tbody>${materialRows}</tbody></table></body></html>`);
+    @page { margin:0.42in; } body { font-family:Arial,sans-serif; color:#111; } h1 { font-size:18pt; margin:0 0 6pt; } h2 { margin-top:18pt; } p { margin:0 0 12pt; } .pattern { display:block; max-width:100%; max-height:8.1in; margin:auto; image-rendering:pixelated; border:1px solid #444; } .tile-page { break-after:page; page-break-after:always; } .tile-heading { font-weight:bold; } .tile-frame { position:relative; display:inline-block; max-width:100%; padding:10pt; } .mark { position:absolute; width:11pt; height:11pt; } .mark:before,.mark:after { content:""; position:absolute; background:#111; } .mark:before { width:11pt; height:1px; top:5pt; left:0; } .mark:after { width:1px; height:11pt; top:0; left:5pt; } .tl{top:0;left:0}.tr{top:0;right:0}.bl{bottom:0;left:0}.br{bottom:0;right:0} .tile-note { font-size:9pt; } .tile-legend { columns:2; font-size:9pt; padding-left:18pt; } table { border-collapse:collapse; margin-top:12pt; width:100%; font-size:9pt; } th,td { border:1px solid #aaa; padding:4pt; text-align:left; } th { background:#eee; } .swatch { display:block; width:14pt; height:14pt; border:1px solid #555; border-radius:50%; } @media print { .print { display:none; } details { display:block; } details summary { display:none; } }
+  </style></head><body><button class="print" onclick="window.print()">Print / Save as PDF</button><h1>${escapeHtml(title)}</h1><p>${pattern.width} × ${pattern.height} pegs · ${materials.reduce((total, row) => total + row.requiredQuantity, 0)} beads · ${pattern.width * pattern.height - materials.reduce((total, row) => total + row.requiredQuantity, 0)} empty pegs · ${layout.tiles.length} printable ${layout.tiles.length === 1 ? "page" : "tiles"}</p>${tilePages}<section class="materials"><h2>Materials</h2><table><thead><tr><th>Symbol</th><th></th><th>Brand</th><th>Code</th><th>Color</th><th>Required</th><th>Recommended</th><th>On hand</th><th>To buy</th></tr></thead><tbody>${materialRows}</tbody></table></section></body></html>`);
   popup.document.close();
-  const headerRow = popup.document.querySelector("thead tr");
-  if (headerRow) headerRow.innerHTML = "<th>Symbol</th><th></th><th>Brand</th><th>Code</th><th>Color</th><th>Required</th><th>Recommended</th><th>On hand</th><th>To buy</th>";
   return popup;
 }

@@ -96,7 +96,7 @@ export function convertRasterToPattern(raster: RgbaRaster, catalogue: readonly B
     const offset = index * 4, alpha = raster.data[offset + 3];
     const foreground = { r: raster.data[offset], g: raster.data[offset + 1], b: raster.data[offset + 2] };
     if (background) prepared.push(alpha === 255 ? foreground : composite(foreground, alpha, background.rgb!));
-    else prepared.push(alpha < threshold ? null : foreground);
+    else prepared.push(alpha === 0 || alpha < threshold ? null : foreground);
   }
   // First pass obtains deterministic candidate usage; second pass constrains all cells to its most-used colors.
   const firstPass = prepared.map((color) => color ? closest(color, palette) : null);

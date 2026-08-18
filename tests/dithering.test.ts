@@ -15,3 +15,10 @@ test("every dithering mode respects the final maximum palette", () => {
     assert.ok([...pattern.counts.keys()].every((id) => [black.id, white.id, gray.id].includes(id)));
   }
 });
+
+test("fully transparent pixels remain empty even when the alpha cutoff is zero", () => {
+  const raster = { width: 1, height: 1, data: new Uint8ClampedArray([255, 0, 0, 0]) };
+  const result = convertRasterToPattern(raster, [black, white, gray], { width: 1, height: 1, brand: "PERLER", disabledBeadIds: new Set(), maxColors: 2, alphaThreshold: 0, dither: "none", background: { kind: "empty" } });
+  assert.equal(result.cells[0].beadId, null);
+  assert.equal(result.emptyPegs, 1);
+});

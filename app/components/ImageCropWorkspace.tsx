@@ -1,6 +1,7 @@
 "use client";
 import { ChangeEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { applyImageAdjustments, defaultImageAdjustments, type ImageAdjustments } from "../lib/image-adjustments";
+import { defaultBackgroundMask, resolveBackgroundMask, type BackgroundMaskSettings, type MaskBrushMode, type MaskBrushStroke } from "../lib/background-mask";
 
 export type FitMode = "cover" | "contain";
 export type PaddingAlignment = "top-left" | "center";
@@ -41,6 +42,8 @@ export type ImagePreparationValue = {
   paddingAlignment: PaddingAlignment;
   lockAspectRatio: boolean;
   adjustments: ImageAdjustments;
+  /** Local-only background-removal configuration and normalized refinement strokes. */
+  backgroundMask: BackgroundMaskSettings;
 };
 
 /** Alias used by the app-level conversion pipeline. */
@@ -60,6 +63,7 @@ export const defaultImagePreparation: ImagePreparationValue = {
   paddingAlignment: "top-left",
   lockAspectRatio: true,
   adjustments: defaultImageAdjustments,
+  backgroundMask: defaultBackgroundMask,
 };
 
 type Props = {
@@ -130,13 +134,35 @@ export function ImageCropWorkspace({
   const imageViewportRef = useRef<HTMLDivElement>(null);
   const adjustedCanvasRef = useRef<HTMLCanvasElement>(null);
   const rawCanvasRef = useRef<HTMLCanvasElement>(null);
+  const maskCanvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<DragState | null>(null);
+  const maskStrokeRef = useRef<MaskBrushStroke | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uncontrolledComparisonMode, setUncontrolledComparisonMode] = useState<ImageComparisonMode>("adjusted");
   const [isSampling, setIsSampling] = useState(false);
+  const [maskBrushMode, setMaskBrushMode] = useState<MaskBrushMode>("remove");
+  const [maskBrushSize, setMaskBrushSize] = useState(0.035);
+  const [isMaskPainting, setIsMaskPainting] = useState(false);
   const ratio = boardWidth > 0 && boardHeight > 0 ? boardWidth / boardHeight : 1;
   const imageAspect = transformedAspect(value);
   const activeComparisonMode = comparisonMode ?? uncontrolledComparisonMode;
+
+  const renderMaskPreview = () => {
+    const sourceCanvas = adjustedCanvasRef.current, maskCanvas = maskCanvasRef.current;
+    if (!sourceCanvas || !maskCanvas || !sourceCanvas.width || !sourceCanvas.height) return;
+    maskCanvas.width = sourceCanvas.width; maskCanvas.height = sourceCanvas.height;
+    const context = maskCanvas.getContext("2d", { willReadFrequently: true });
+    const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    if (!context || !sourceContext) return;
+    const image = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+    const mask = resolveBackgroundMask({ width: sourceCanvas.width, height: sourceCanvas.height, data: image.data }, value.backgroundMask);
+    const preview = context.createImageData(maskCanvas.width, maskCanvas.height);
+    for (let index = 0; index < mask.length; index += 1) {
+      const offset = index * 4; const alpha = mask[index];
+      preview.data[offset] = alpha; preview.data[offset + 1] = alpha; preview.data[offset + 2] = alpha; preview.data[offset + 3] = 255;
+    }
+    context.putImageData(preview, 0, 0);
+  };
 
   useEffect(() => {
     if (!value.sourceUrl || !value.sourceWidth || !value.sourceHeight || !adjustedCanvasRef.current || !rawCanvasRef.current) return;
@@ -166,9 +192,15 @@ export function ImageCropWorkspace({
       const preview = context.getImageData(0, 0, canvas.width, canvas.height);
       preview.data.set(applyImageAdjustments(preview.data, value.adjustments));
       context.putImageData(preview, 0, 0);
+      renderMaskPreview();
     };
     image.src = value.sourceUrl;
+  // renderMaskPreview intentionally reads current mask state when this image redraws.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.sourceUrl, value.sourceWidth, value.sourceHeight, value.rotation, value.flipHorizontal, value.flipVertical, value.adjustments, activeComparisonMode]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { renderMaskPreview(); }, [value.backgroundMask]); // Mask edits update independently of image transforms.
 
   // The crop only needs normalization when the board shape changes; including the
   // controlled object here would re-emit it after every parent render.
@@ -296,6 +328,37 @@ export function ImageCropWorkspace({
     update({ zoom, crop });
   };
   const updateAdjustment = (key: keyof ImageAdjustments, amount: number) => update({ adjustments: { ...value.adjustments, [key]: amount } });
+  const setBackgroundMask = (backgroundMask: BackgroundMaskSettings) => update({ backgroundMask });
+  const normalizedPointer = (event: PointerEvent<HTMLCanvasElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return { x: clamp((event.clientX - bounds.left) / bounds.width, 0, 1), y: clamp((event.clientY - bounds.top) / bounds.height, 0, 1) };
+  };
+  const startMaskStroke = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (disabled || activeComparisonMode !== "mask") return;
+    event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId);
+    maskStrokeRef.current = { mode: maskBrushMode, radius: maskBrushSize, points: [normalizedPointer(event)] };
+    setIsMaskPainting(true);
+  };
+  const extendMaskStroke = (event: PointerEvent<HTMLCanvasElement>) => {
+    const stroke = maskStrokeRef.current;
+    if (!stroke) return;
+    maskStrokeRef.current = { ...stroke, points: [...stroke.points, normalizedPointer(event)] };
+    // Preview each movement without storing an unbounded undo history in the parent.
+    const pending = { ...value.backgroundMask, strokes: [...value.backgroundMask.strokes, maskStrokeRef.current] };
+    const sourceCanvas = adjustedCanvasRef.current, maskCanvas = maskCanvasRef.current;
+    if (!sourceCanvas || !maskCanvas) return;
+    const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true }); const context = maskCanvas.getContext("2d");
+    if (!sourceContext || !context) return;
+    const image = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+    const mask = resolveBackgroundMask({ width: sourceCanvas.width, height: sourceCanvas.height, data: image.data }, pending);
+    const preview = context.createImageData(maskCanvas.width, maskCanvas.height);
+    for (let index = 0; index < mask.length; index += 1) { const offset = index * 4; preview.data[offset] = mask[index]; preview.data[offset + 1] = mask[index]; preview.data[offset + 2] = mask[index]; preview.data[offset + 3] = 255; }
+    context.putImageData(preview, 0, 0);
+  };
+  const finishMaskStroke = () => {
+    const stroke = maskStrokeRef.current; maskStrokeRef.current = null; setIsMaskPainting(false);
+    if (stroke) setBackgroundMask({ ...value.backgroundMask, strokes: [...value.backgroundMask.strokes, stroke] });
+  };
   const cropStyle = { left: `${value.crop.x}%`, top: `${value.crop.y}%`, width: `${value.crop.width}%`, height: `${value.crop.height}%` };
   const stageAspect = 4 / 3;
   const imageViewportStyle = imageAspect >= stageAspect
@@ -327,7 +390,7 @@ export function ImageCropWorkspace({
             ["original", "Original"],
             ["cropped", "Cropped"],
             ["adjusted", "Adjusted"],
-            ["mask", "Mask (Phase 3)"],
+            ["mask", "Background mask"],
           ] as const).map(([mode, label]) => (
             <button key={mode} type="button" role="tab" aria-selected={activeComparisonMode === mode} onClick={() => setComparisonMode(mode)} className={`rounded-md px-3 py-1.5 text-sm font-medium ${activeComparisonMode === mode ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>{label}</button>
           ))}
@@ -344,7 +407,12 @@ export function ImageCropWorkspace({
           // eslint-disable-next-line @next/next/no-img-element -- the user-selected local data URL must not be uploaded for optimization.
           <img src={value.sourceUrl} alt={value.fileName ? `Original image: ${value.fileName}` : "Original source image"} className="max-h-full max-w-full object-contain" draggable={false} />
         ) : value.sourceUrl && activeComparisonMode === "mask" ? (
-          <div className="absolute inset-0 grid place-items-center bg-slate-900/80 p-8 text-center text-sm text-slate-100"><div><strong className="block text-base">Mask preview arrives in Phase 3</strong><span className="mt-1 block text-slate-300">Background removal and keep/remove brush refinement will be shown here.</span></div></div>
+          <div className="relative h-full w-full" style={imageViewportStyle}>
+            <canvas ref={rawCanvasRef} aria-hidden="true" className="hidden" />
+            <canvas ref={adjustedCanvasRef} aria-hidden="true" className="hidden" />
+            <canvas ref={maskCanvasRef} aria-label="Background removal mask: white is kept and black is removed" className={`h-full w-full ${isMaskPainting ? "cursor-crosshair" : "cursor-cell"}`} onPointerDown={startMaskStroke} onPointerMove={extendMaskStroke} onPointerUp={finishMaskStroke} onPointerCancel={finishMaskStroke} />
+            <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-slate-900/80 px-2 py-1 text-xs text-white">White: keep · Black: remove</span>
+          </div>
         ) : value.sourceUrl && activeComparisonMode === "cropped" ? (
           <div className="relative max-h-full max-w-full overflow-hidden" style={{ aspectRatio: ratio, width: ratio >= stageAspect ? "100%" : "auto", height: ratio < stageAspect ? "100%" : "auto" }}>
             <canvas ref={rawCanvasRef} aria-label={value.fileName ? `Cropped image: ${value.fileName}` : "Cropped source image"} className={`absolute ${isSampling ? "cursor-crosshair" : ""}`} style={cropPreviewCanvasStyle} onPointerDown={samplePreparedImage} />
@@ -404,6 +472,16 @@ export function ImageCropWorkspace({
             </select>
           </label>
           <p className="text-xs leading-5 text-slate-500">Fill crops to the board shape. Padding keeps the full crop; top-left is the default placement for unused pegs.</p>
+          <details className="rounded-lg border border-slate-200 bg-slate-50 p-3" open={activeComparisonMode === "mask"}>
+            <summary className="cursor-pointer text-sm font-semibold text-slate-800">Background removal & mask</summary>
+            <p className="mt-2 text-xs leading-5 text-slate-600">Runs locally in your browser. Automatic removal identifies border-connected colors similar to the top-left edge; repair ambiguous areas with the mask brush.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50" onClick={() => { setBackgroundMask({ ...value.backgroundMask, automatic: true }); setComparisonMode("mask"); }}>Auto remove background</button>
+              <button type="button" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50" onClick={() => { setBackgroundMask(defaultBackgroundMask); setComparisonMode("mask"); }}>Reset mask</button>
+            </div>
+            <label className="mt-3 block text-xs text-slate-700">Automatic sensitivity <span className="float-right">{value.backgroundMask.threshold}</span><input className="mt-1 w-full accent-teal-600" type="range" min="0" max="180" value={value.backgroundMask.threshold} disabled={!value.backgroundMask.automatic} onChange={(event) => setBackgroundMask({ ...value.backgroundMask, threshold: Number(event.target.value) })} /></label>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-700"><span>Mask brush</span><button type="button" className={`rounded border px-2 py-1 ${maskBrushMode === "remove" ? "border-teal-600 bg-teal-50 text-teal-800" : "border-slate-300"}`} onClick={() => { setMaskBrushMode("remove"); setComparisonMode("mask"); }}>Remove</button><button type="button" className={`rounded border px-2 py-1 ${maskBrushMode === "keep" ? "border-teal-600 bg-teal-50 text-teal-800" : "border-slate-300"}`} onClick={() => { setMaskBrushMode("keep"); setComparisonMode("mask"); }}>Keep</button><label className="min-w-32 flex-1">Size <input className="ml-2 w-20 accent-teal-600" type="range" min="0.005" max="0.15" step="0.005" value={maskBrushSize} onChange={(event) => setMaskBrushSize(Number(event.target.value))} /></label></div>
+          </details>
         </fieldset>
       </div>
     </section>

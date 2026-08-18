@@ -59,3 +59,30 @@ test("XLSX exports are OpenXML ZIP workbooks containing expected worksheets", as
   assert.match(workbook, /Pattern info/);
   assert.match(strFromU8(patternFiles["xl/worksheets/sheet3.xml"]), /Generation color limit/);
 });
+
+test("print layout uses board-sized pages, stable tile labels, and overlap", () => {
+  const large = {
+    width: 58,
+    height: 30,
+    cells: Array.from({ length: 30 }, () => Array.from({ length: 58 }, () => black)),
+    metadata: { boardWidth: 29, boardHeight: 29 },
+  };
+  const layout = exports.createPatternPrintLayout(large);
+  assert.equal(layout.mode, "tiled");
+  assert.equal(layout.overlap, 1);
+  assert.equal(layout.columns, 2);
+  assert.equal(layout.rows, 1);
+  assert.deepEqual(layout.tiles.map(({ label, x, width }) => ({ label, x, width })), [
+    { label: "A1", x: 0, width: 30 },
+    { label: "A2", x: 29, width: 29 },
+  ]);
+  assert.deepEqual(layout.tiles.at(-1), { index: 1, column: 1, row: 0, label: "A2", x: 29, y: 0, width: 29, height: 30 });
+});
+
+test("print layout retains a sensible single-page option and validates overlap", () => {
+  const single = exports.createPatternPrintLayout(pattern, { layout: "single" });
+  assert.equal(single.mode, "single");
+  assert.equal(single.tiles.length, 1);
+  assert.deepEqual(single.tiles[0], { index: 0, column: 0, row: 0, label: "A1", x: 0, y: 0, width: 2, height: 2 });
+  assert.throws(() => exports.createPatternPrintLayout(pattern, { layout: "tiled", tileWidth: 2, tileHeight: 2, overlap: 2 }), /overlap/);
+});
